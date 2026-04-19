@@ -1,0 +1,33 @@
+<additional>
+    <vType id="accident_car" vClass="passenger" decel="3.4" color="red"/>
+
+    <route id="route_tn_1" edges="-329388956"/>
+    <vehicle id="xe_tai_nan_1" type="accident_car" route="route_tn_1" depart="595">
+        <stop lane="-329388956_0" endPos="10" duration="1500" start="600"/>
+    </vehicle>
+
+    <route id="route_tn_2" edges="953791874"/>
+    <vehicle id="xe_tai_nan_2" type="accident_car" route="route_tn_2" depart="795">
+        <stop lane="953791874_0" endPos="10" duration="1500" start="800"/>
+    </vehicle>
+
+    <route id="route_tn_3" edges="31563959"/>
+    <vehicle id="xe_tai_nan_3" type="accident_car" route="route_tn_3" depart="995">
+        <stop lane="31563959_0" endPos="10" duration="1500" start="1000"/>
+    </vehicle>
+    
+    <route id="route_tn_4" edges="796275450"/>
+    <vehicle id="xe_tai_nan_4" type="accident_car" route="route_tn_4" depart="1195">
+        <stop lane="796275450_0" endPos="10" duration="1500" start="1200"/>
+    </vehicle>
+
+    <route id="route_tn_5" edges="277760674"/>
+    <vehicle id="xe_tai_nan_5" type="accident_car" route="route_tn_5" depart="1395">
+        <stop lane="277760674_0" endPos="10" duration="1500" start="1400"/>
+    </vehicle>
+
+    <route id="route_tn_6" edges="464551516"/>
+    <vehicle id="xe_tai_nan_6" type="accident_car" route="route_tn_6" depart="1595">
+        <stop lane="464551516_0" endPos="10" duration="1500" start="1600"/>
+    </vehicle>
+</additional>

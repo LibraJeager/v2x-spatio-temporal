@@ -1,0 +1,5 @@
+<additional>
+    <vType id="passenger" vClass="passenger" decel="3.4"/>
+    <vType id="bus" vClass="bus" decel="3.4"/>
+    <vType id="tram" vClass="tram" decel="3.4"/>
+</additional>

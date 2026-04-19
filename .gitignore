@@ -1,0 +1,18 @@
+# 1. DỮ LIỆU THÔ KHỔNG LỒ (Tuyệt đối không push)
+fcd_data*.xml
+*.csv
+
+# 2. MÔI TRƯỜNG & RÁC CỦA PYTHON
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.env
+
+# 3. RÁC CỦA JUPYTER NOTEBOOK
+.ipynb_checkpoints/
+
+# 4. RÁC CỦA HỆ ĐIỀU HÀNH
+.DS_Store
+Thumbs.db

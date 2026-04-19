@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  # 1. Trạm trung chuyển thông điệp (Message Broker)
+  # Phóng phỏng Pub/Sub để các xe (Vehicle) gửi dữ liệu CAM message vào đây
+  v2x-broker:
+    image: eclipse-mosquitto:latest
+    container_name: v2x-broker
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+    networks:
+      - v2x-network
+
+  # 2. Trạm thu phát ven đường A (Edge Node / RSU A)
+  rsu-node-a:
+    build: .
+    container_name: rsu-node-a
+    environment:
+      - RSU_ID=RSU_A
+      - BROKER_HOST=v2x-broker
+    volumes:
+      # Gắn file code từ máy Linux vào thẳng trong container
+      - ./edge_processor.py:/app/edge_processor.py
+      - ./osm.net.xml:/app/osm.net.xml                              #
+      - ./veeps_spatio_temporal.json:/app/veeps_spatio_temporal.json
+    working_dir: /app
+    networks:
+      - v2x-network
+  # 3. Trạm thu phát ven đường B (Edge Node / RSU B)
+  rsu-node-b:
+    image: python:3.9-slim
+    container_name: rsu-node-b
+    command: tail -f /dev/null
+    environment:
+      - RSU_ID=RSU_B
+      - BROKER_HOST=v2x-broker
+    networks:
+      - v2x-network
+
+# 4. Tạo một mạng lưới ảo (Virtual Network) để 3 trạm này "nhìn thấy" nhau
+networks:
+  v2x-network:
+    driver: bridge
