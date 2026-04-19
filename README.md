@@ -64,3 +64,272 @@ flowchart LR
         I --> K["5-minute temporal memory\nper-lane deque buffer"]
         K --> L["15-minute early warning\ncongestion risk alert"]
     end
+```
+
+---
+
+## Methodology
+
+### 1. Large-Scale Data Extraction
+
+The input data consists of **SUMO Floating Car Data (FCD)** exported in XML format. Because the raw telemetry volume reaches **13.6 GB**, a conventional full-memory parsing strategy is not appropriate. VEEPS instead adopts a **streaming ETL design** using Python's **`iterparse`**, allowing the system to:
+
+- sequentially process XML events,
+- immediately extract relevant attributes,
+- release parsed elements from memory, and
+- maintain a nearly constant memory footprint.
+
+This design is a core engineering contribution of the project because it transforms a potentially unstable preprocessing step into a **scalable and reproducible data pipeline**.
+
+### 2. Feature Engineering Strategy
+
+Instead of learning directly from instantaneous speed, the project explicitly removes **`v_mean`** to avoid overfitting to a reactive variable that becomes informative only after congestion is already visible.
+
+The feature design centers around **FDR (Follower Distance Ratio)** and encodes two complementary dimensions:
+
+- **Spatial dependency**: information from neighboring incoming and outgoing intersections/lane groups.
+- **Temporal dependency**: a **5-minute memory window** that captures local traffic evolution.
+
+The resulting spatio-temporal feature family includes:
+
+- **`vehicle_count`**
+- **`fdr_mean`**
+- **`FDR_in`**
+- **`FDR_out`**
+- **`FDR_med`**
+- **`FDR_std`**
+
+### 3. Predictive Modeling
+
+The forecasting model is implemented with **XGBoost**, chosen for its:
+
+- strong tabular learning performance,
+- robustness under heterogeneous feature interactions,
+- practical training/inference efficiency, and
+- suitability for deployment in constrained edge settings.
+
+The target task is **15-minute-ahead congestion forecasting**, and the final model achieved:
+
+- **R² = 0.8919**
+
+This result supports the hypothesis that **FDR-driven spatio-temporal features** can act as reliable early signals for congestion prediction.
+
+### 4. Edge Inference Architecture
+
+For real-time operation, the trained model is packaged into a **Dockerized inference node** that behaves like an **RSU at the network edge**. Vehicle telemetry is streamed through **MQTT (Eclipse Mosquitto)**, enabling lightweight message-based communication between the producer and the edge processor.
+
+At runtime, the edge node:
+
+- subscribes to live telemetry,
+- maps observations to road topology,
+- maintains per-lane temporal history,
+- reconstructs the spatio-temporal feature vector, and
+- emits early congestion warnings.
+
+---
+
+## Key Engineering Achievements
+
+### Memory-Efficient Big Data ETL
+
+- Processed **13.6 GB** of XML telemetry with **streaming ETL**.
+- Reduced memory usage from roughly **11 GB** to **below 50 MB**.
+- Built a preprocessing pipeline suitable for **commodity hardware** and repeatable experimentation.
+
+### Leakage-Aware ML Design
+
+- **Completely removed `v_mean`** from the feature set.
+- Reframed the forecasting problem around **leading indicators** instead of reactive signals.
+- Demonstrated that **FDR-only spatio-temporal features** can still achieve strong predictive power.
+
+### Production-Oriented Edge Deployment
+
+- Containerized inference as an **RSU-like edge service**.
+- Integrated **MQTT** for real-time telemetry transport.
+- Designed a compact architecture that is easy to demonstrate, reproduce, and extend.
+
+---
+
+## Technical Highlights
+
+- **Big Data**: streaming XML ETL with **`iterparse`** for large-scale SUMO outputs.
+- **Machine Learning**: **XGBoost** with **spatio-temporal FDR features** only.
+- **Bias Reduction**: explicit elimination of **current speed (`v_mean`)** from the model.
+- **Edge Computing**: **Docker-based RSU runtime** for localized inference.
+- **Messaging Layer**: **MQTT / Eclipse Mosquitto** for real-time V2X data flow.
+- **Forecast Horizon**: **15-minute-ahead** congestion prediction.
+
+---
+
+## Repository Structure
+
+```text
+v2x-spatio-temporal/
+├── data/
+│   └── simulations/
+│       ├── KichBan_1_TacNghenNang/
+│       │   ├── fcd_producer.py
+│       │   ├── build.bat
+│       │   ├── run.bat
+│       │   └── *.xml / *.sumocfg / *.rou.xml
+│       ├── KichBan_2_TaiNan/
+│       ├── KichBan_3_TacNghenNhe/
+│       └── KichBan_4_GiaoThongThuaThot/
+├── docker/
+│   ├── Dockerfile
+│   ├── docker-compose.yml
+│   ├── mosquitto.conf
+│   └── osm.net.xml
+├── docs/
+│   ├── features_importance.png
+│   └── live_demo_terminal.png
+├── models/
+│   └── veeps_spatio_temporal.json
+├── notebooks/
+│   └── V2X_XGBoost1.ipynb
+├── src/
+│   ├── edge_processor.py
+│   └── extract_csv.py
+└── README.md
+```
+
+---
+
+## How to Run
+
+### Prerequisites
+
+- **Docker**
+- **Python 3.9+**
+- **SUMO**
+- Python dependencies for the producer:
+
+```bash
+pip install paho-mqtt
+```
+
+---
+
+### 1) Clone the Repository
+
+```bash
+git clone https://github.com/LibraJeager/v2x-spatio-temporal.git
+cd v2x-spatio-temporal
+```
+
+---
+
+### 2) Start the MQTT Broker
+
+```bash
+docker network create veeps-net
+
+docker run -d \
+  --name v2x-broker \
+  --network veeps-net \
+  -p 1883:1883 \
+  -v "$PWD/docker/mosquitto.conf:/mosquitto/config/mosquitto.conf" \
+  eclipse-mosquitto:latest
+```
+
+---
+
+### 3) Build and Run the RSU Edge AI Container
+
+```bash
+docker build -f docker/Dockerfile -t veeps-rsu docker
+
+docker run --rm -it \
+  --name rsu-node-a \
+  --network veeps-net \
+  -v "$PWD/src/edge_processor.py:/app/edge_processor.py" \
+  -v "$PWD/docker/osm.net.xml:/app/osm.net.xml" \
+  -v "$PWD/models/veeps_spatio_temporal.json:/app/veeps_spatio_temporal.json" \
+  veeps-rsu
+```
+
+When the container starts successfully, it will:
+
+- connect to **MQTT broker `v2x-broker:1883`**,
+- load **`osm.net.xml`** as the spatial topology map,
+- load the trained model **`veeps_spatio_temporal.json`**,
+- maintain a **5-minute lane memory buffer**, and
+- emit **early-warning alerts** when severe congestion is predicted.
+
+---
+
+### 4) Run the Producer to Stream Real-Time Vehicle Data
+
+Example scenario:
+
+```bash
+cd data/simulations/KichBan_1_TacNghenNang
+python fcd_producer.py
+```
+
+> **Important:** Update `BROKER_ADDRESS` inside `fcd_producer.py` to match your broker host.
+>
+> - Use **`localhost`** if the producer runs on the same machine as Docker.
+> - Use your **host IP address** if the producer runs from another machine.
+
+Published topic:
+
+```text
+v2x/telemetry/raw
+```
+
+Each message typically contains:
+
+- **`timestep`**
+- **`vehicle_id`**
+- **`speed`**
+- **`lane`**
+- **`pos`**
+
+---
+
+### 5) Optional: Run SUMO Scenario Scripts
+
+```bash
+cd data/simulations/KichBan_1_TacNghenNang
+run.bat
+```
+
+```bash
+cd data/simulations/KichBan_1_TacNghenNang
+build.bat
+```
+
+---
+
+## Experimental Framing
+
+This project is positioned as a **research-oriented engineering prototype** rather than only a demo application. It contributes across three layers:
+
+1. **Data Layer** — scalable ETL for high-volume traffic telemetry.
+2. **Model Layer** — leakage-aware spatio-temporal forecasting with interpretable tabular ML.
+3. **System Layer** — real-time edge deployment for V2X-style congestion intelligence.
+
+This combination makes VEEPS relevant to both:
+
+- **academic evaluation** (method, hypothesis, feature design, result), and
+- **software engineering assessment** (deployment, reproducibility, runtime integration).
+
+---
+
+## Future Work
+
+- Extend from single-node inference to **multi-RSU cooperative forecasting**.
+- Integrate **streaming analytics frameworks** such as Kafka or Redpanda.
+- Add **online monitoring**, **concept drift detection**, and **model observability**.
+- Benchmark against **LSTM**, **Temporal GNN**, and **Transformer-based** forecasting baselines.
+- Expose predictions through a **dashboard** or **REST/gRPC API** for traffic operators.
+
+---
+
+## Author
+
+**LibraJeager**  
+Graduation Project — **VEEPS: Spatio-Temporal Edge AI for V2X Traffic Forecasting**
+
+If this repository supports your research or engineering work, consider giving it a ⭐ on GitHub.
