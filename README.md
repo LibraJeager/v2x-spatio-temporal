@@ -330,6 +330,6 @@ This combination makes VEEPS relevant to both:
 ## Author
 
 **LibraJeager**  
-Graduation Project — **VEEPS: Spatio-Temporal Edge AI for V2X Traffic Forecasting**
+Project — **VEEPS: Spatio-Temporal Edge AI for V2X Traffic Forecasting**
 
 If this repository supports your research or engineering work, consider giving it a ⭐ on GitHub.
