@@ -3,9 +3,6 @@
   <!-- Background -->
   <rect width="900" height="520" fill="#F7F9FC" rx="12"/>
 
-  <!-- Title -->
-  <text x="450" y="38" text-anchor="middle" font-size="17" font-weight="bold" fill="#1A2E4A">Kiến trúc luồng dữ liệu thời gian thực — VEEPS</text>
-
   <!-- ZONE: Windows -->
   <rect x="30" y="58" width="215" height="350" rx="10" fill="#EAF2FF" stroke="#4A90D9" stroke-width="1.5" stroke-dasharray="6,3"/>
   <text x="137" y="78" text-anchor="middle" font-size="12" font-weight="bold" fill="#2C6FAC">Môi trường Windows</text>
